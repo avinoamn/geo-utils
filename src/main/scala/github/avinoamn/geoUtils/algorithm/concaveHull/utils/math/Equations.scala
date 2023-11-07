@@ -7,7 +7,7 @@ import org.locationtech.jts.geom.{Coordinate, LineString}
 object Equations {
   def getSlope(head: Vertex, tail: Vertex): Double = {
     if (head.x == tail.x) {
-      (head.y - tail.y)/((head.x - Distances.MIN_BUFFER) - tail.x)
+      (head.y - tail.y)/(-1 * Distances.MIN_BUFFER)
     } else {
       (head.y - tail.y)/(head.x - tail.x)
     }

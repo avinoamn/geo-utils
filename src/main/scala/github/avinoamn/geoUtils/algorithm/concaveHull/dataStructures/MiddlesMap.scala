@@ -51,7 +51,7 @@ class MiddlesMap(implicit factory: GeometryFactory, verticesMap: VerticesMap) {
         if (leftVertex.x < middleLeftVertex.x && rightVertex.x <= middleRightVertex.x) {
           if ((rightRangeSlope > middleSlope && slope >= rightRangeSlope && slope <= leftRangeSlope) ||
               (rightRangeSlope < middleSlope && slope <= rightRangeSlope && slope >= leftRangeSlope) ||
-              (rightRangeSlope == leftRangeSlope)) {
+              (slope == middleSlope)) {
             return true
           }
           return false
@@ -89,7 +89,7 @@ class MiddlesMap(implicit factory: GeometryFactory, verticesMap: VerticesMap) {
         val intersection = lineString.intersection(middleLineString).getCoordinate
 
         if (intersection != null) {
-          if (leftRangeSlope == rightRangeSlope) {
+          if (slope == middleSlope) {
             throw new Exception("Can't handle geometries with overlapping lines.")
           }
 
@@ -136,7 +136,7 @@ class MiddlesMap(implicit factory: GeometryFactory, verticesMap: VerticesMap) {
         if (middleLeftVertex.x <= leftVertex.x &&  middleRightVertex.x < rightVertex.x) {
           if ((leftRangeSlope > middleSlope && slope >= leftRangeSlope && slope <= rightRangeSlope) ||
               (leftRangeSlope < middleSlope && slope <= leftRangeSlope && slope >= rightRangeSlope) ||
-              (leftRangeSlope == rightRangeSlope)) {
+              (slope == middleSlope)) {
             return true
           }
           return false
@@ -174,7 +174,7 @@ class MiddlesMap(implicit factory: GeometryFactory, verticesMap: VerticesMap) {
         val intersection = lineString.intersection(middleLineString).getCoordinate
 
         if (intersection != null) {
-          if (leftRangeSlope == rightRangeSlope) {
+          if (slope == middleSlope) {
             throw new Exception("Can't handle geometries with overlapping lines.")
           }
 

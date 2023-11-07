@@ -98,13 +98,13 @@ class HorizontalSortedVerticesIds(private val head: String)(implicit factory: Ge
         val rightRangeSlope = Equations.getSlope(leftVertex, rightTestVertex)
         if ((rightRangeSlope > testSlope && slope >= rightRangeSlope && slope <= leftRangeSlope) ||
             (rightRangeSlope < testSlope && slope <= rightRangeSlope && slope >= leftRangeSlope) ||
-            (rightRangeSlope == leftRangeSlope)) {
+            (slope == testSlope)) {
           val lineString = factory.createLineString(Array(new Coordinate(leftVertex.x, leftVertex.y), new Coordinate(rightVertex.x, rightVertex.y)))
           val testLineString = factory.createLineString(Array(new Coordinate(leftTestVertex.x, leftTestVertex.y), new Coordinate(rightTestVertex.x, rightTestVertex.y)))
           val intersection = lineString.intersection(testLineString).getCoordinate
 
           if (intersection != null) {
-            if (rightRangeSlope == leftRangeSlope) {
+            if (slope == testSlope) {
               throw new Exception("Can't handle geometries with overlapping lines.")
             }
 
@@ -142,13 +142,13 @@ class HorizontalSortedVerticesIds(private val head: String)(implicit factory: Ge
         val rightRangeSlope = Equations.getSlope(rightVertex, rightTestVertex)
         if ((leftRangeSlope > testSlope && slope >= leftRangeSlope && slope <= rightRangeSlope) ||
             (leftRangeSlope < testSlope && slope <= leftRangeSlope && slope >= rightRangeSlope) ||
-            (leftRangeSlope == rightRangeSlope)) {
+            (slope == testSlope)) {
           val lineString = factory.createLineString(Array(new Coordinate(leftVertex.x, leftVertex.y), new Coordinate(rightVertex.x, rightVertex.y)))
           val testLineString = factory.createLineString(Array(new Coordinate(leftTestVertex.x, leftTestVertex.y), new Coordinate(rightTestVertex.x, rightTestVertex.y)))
           val intersection = lineString.intersection(testLineString).getCoordinate
 
           if (intersection != null) {
-            if (leftRangeSlope == rightRangeSlope) {
+            if (slope == testSlope) {
               throw new Exception("Can't handle geometries with overlapping lines.")
             }
 
