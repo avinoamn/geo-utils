@@ -3,6 +3,7 @@ package github.avinoamn.geoUtils.algorithm.concaveHull
 import github.avinoamn.geoUtils.algorithm.concaveHull.dataStructures._
 import github.avinoamn.geoUtils.algorithm.concaveHull.models.{IntersectingLine, Vertex}
 import github.avinoamn.geoUtils.algorithm.concaveHull.utils.math.Equations
+import github.avinoamn.geoUtils.algorithm.concaveHull.utils.models.LinkedVertices
 import org.locationtech.jts.geom._
 
 object ConcaveHull {
@@ -53,27 +54,25 @@ object ConcaveHull {
   }
 
   def computeHull(coords: Array[Coordinate]): Array[Coordinate] = {
-    implicit val verticesMap: VerticesMap = new VerticesMap(new Vertex(coords.head.x, coords.head.y, isHead = true))
-    implicit val horizontalSortedVerticesIds: HorizontalSortedVerticesIds = new HorizontalSortedVerticesIds(verticesMap.getHead.id)
+    val headVertex = new Vertex(coords.head.x, coords.head.y, isHead = true)
+    implicit val horizontalSortedVertices: HorizontalSortedVertices = new HorizontalSortedVertices(headVertex)
 
     coords.slice(1, coords.length).zipWithIndex.foreach{ case (coord, index) =>
       val vertex = new Vertex(coord.x, coord.y, isTail = (index == coords.length - 2))
-      val prevVertex = verticesMap.get(horizontalSortedVerticesIds.getCurrentIndexVertexId)
+      val prevVertex = horizontalSortedVertices.getCurrentIndexVertex
       val slope = Equations.getSlope(prevVertex, vertex)
 
-      verticesMap.add(vertex)
-
       if (vertex.x >= prevVertex.x) {
-        val intersectingLines = horizontalSortedVerticesIds.getLTRIntersectingLines(prevVertex, vertex, slope)
+        val intersectingLines = horizontalSortedVertices.getLTRIntersectingLines(prevVertex, vertex, slope)
         fixLTRIntersections(intersectingLines, prevVertex, vertex, slope)
       } else if (vertex.x < prevVertex.x) {
-        val intersectingLines = horizontalSortedVerticesIds.getRTLIntersectingLines(vertex, prevVertex, slope)
+        val intersectingLines = horizontalSortedVertices.getRTLIntersectingLines(vertex, prevVertex, slope)
         fixRTLIntersections(intersectingLines, vertex, prevVertex, slope)
       }
     }
 
     /** Return the fixed geometry's coordinates. */
-    verticesMap.getOrdered.map(vertex => new Coordinate(vertex.x, vertex.y)).toArray
+    LinkedVertices.getOrdered(headVertex).map(vertex => new Coordinate(vertex.x, vertex.y)).toArray
   }
 
   /** Fix Intersection points in the geometry by going around them.
@@ -84,7 +83,7 @@ object ConcaveHull {
    * @param slope Slope of the line of the vertex that was just sorted in.
    */
   private def fixLTRIntersections(intersectingLines: List[IntersectingLine], firstLeftVertex: Vertex, rightVertex: Vertex, slope: Double)
-                                 (implicit verticesMap: VerticesMap, horizontalSortedVerticesIds: HorizontalSortedVerticesIds): Unit = {
+                                 (implicit horizontalSortedVertices: HorizontalSortedVertices): Unit = {
     /** Sort the intersections from left to right. */
     val sortedIntersectionLines = intersectingLines.sortBy(line => {
       slope > 0 match {
@@ -96,25 +95,21 @@ object ConcaveHull {
     var leftVertex = firstLeftVertex
     sortedIntersectionLines.foreach(line => {
       val headAndTail = line.getHeadAndTail
-      val headVertex = verticesMap.get(headAndTail.head)
-      val tailVertex = verticesMap.get(headAndTail.tail)
+      val headVertex = headAndTail.head
+      val tailVertex = headAndTail.tail
 
-      val reverseFrom = tailVertex.id
-      val reverseTo = leftVertex.id
-      verticesMap.reverse(reverseFrom, reverseTo)
+      val reverseFrom = tailVertex
+      val reverseTo = leftVertex
+      LinkedVertices.reverse(reverseFrom, reverseTo)
 
       val headFixVertex = new Vertex(line.intersection.x, line.intersection.y)
-      verticesMap.add(headFixVertex)
-
-      horizontalSortedVerticesIds.addLTRIntersectionVertex(headFixVertex)
-      headVertex.replaceNext(tailVertex, headFixVertex, line.slope, tailVertex.id == line.left)
+      horizontalSortedVertices.addLTRIntersectionVertex(headFixVertex)
+      headVertex.replaceNext(tailVertex, headFixVertex, tailVertex.id == line.left.id)
       headFixVertex.setLeftNext(leftVertex, slope)
 
       val tailFixVertex = new Vertex(line.intersection.x, line.intersection.y)
-      verticesMap.add(tailFixVertex)
-
-      horizontalSortedVerticesIds.addLTRIntersectionVertex(tailFixVertex)
-      tailVertex.setNext(tailFixVertex, line.slope, tailVertex.id == line.left)
+      horizontalSortedVertices.addLTRIntersectionVertex(tailFixVertex)
+      tailVertex.setNext(tailFixVertex, line.slope, tailVertex.id == line.left.id)
 
       leftVertex = tailFixVertex
     })
@@ -129,7 +124,7 @@ object ConcaveHull {
    * @param slope Slope of the line of the vertex that was just sorted in.
    */
   private def fixRTLIntersections(intersectingLines: List[IntersectingLine], leftVertex: Vertex, firstRightVertex: Vertex, slope: Double)
-                                 (implicit verticesMap: VerticesMap, horizontalSortedVerticesIds: HorizontalSortedVerticesIds): Unit = {
+                                 (implicit horizontalSortedVertices: HorizontalSortedVertices): Unit = {
     /** Sort the intersections from right to left. */
     val sortedIntersectionLines = intersectingLines.sortBy(line => {
       slope > 0 match {
@@ -141,25 +136,21 @@ object ConcaveHull {
     var rightVertex = firstRightVertex
     sortedIntersectionLines.foreach(line => {
       val headAndTail = line.getHeadAndTail
-      val headVertex = verticesMap.get(headAndTail.head)
-      val tailVertex = verticesMap.get(headAndTail.tail)
+      val headVertex = headAndTail.head
+      val tailVertex = headAndTail.tail
 
-      val reverseFrom = tailVertex.id
-      val reverseTo = rightVertex.id
-      verticesMap.reverse(reverseFrom, reverseTo)
+      val reverseFrom = tailVertex
+      val reverseTo = rightVertex
+      LinkedVertices.reverse(reverseFrom, reverseTo)
 
       val headFixVertex = new Vertex(line.intersection.x, line.intersection.y)
-      verticesMap.add(headFixVertex)
-
-      horizontalSortedVerticesIds.addRTLIntersectionVertex(headFixVertex)
-      headVertex.replaceNext(tailVertex, headFixVertex, line.slope, tailVertex.id == line.left)
+      horizontalSortedVertices.addRTLIntersectionVertex(headFixVertex)
+      headVertex.replaceNext(tailVertex, headFixVertex, tailVertex.id == line.left.id)
       headFixVertex.setRightNext(rightVertex, slope)
 
       val tailFixVertex = new Vertex(line.intersection.x, line.intersection.y)
-      verticesMap.add(tailFixVertex)
-
-      horizontalSortedVerticesIds.addRTLIntersectionVertex(tailFixVertex)
-      tailVertex.setNext(tailFixVertex, line.slope, tailVertex.id == line.left)
+      horizontalSortedVertices.addRTLIntersectionVertex(tailFixVertex)
+      tailVertex.setNext(tailFixVertex, line.slope, tailVertex.id == line.left.id)
 
       rightVertex = tailFixVertex
     })

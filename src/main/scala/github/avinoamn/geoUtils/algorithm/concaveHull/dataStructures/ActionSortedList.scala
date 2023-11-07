@@ -47,7 +47,7 @@ class ActionSortedList[T](head: T) {
    *
    * @param item Item to be inserted on the `addGreater` method.
    * @param currentIndexItem Current index's item.
-   * @param getComparableItem Method that receive an item, and returns a matching comparable value.
+   * @param getComparableItem Method that receive an item, and returns a matching comparable value to sort by.
    * @tparam V The type of the comparable value matching the list's items.
    */
   private def handleGreaterPendingItems[V : Ordering](item: T, currentIndexItem: T, getComparableItem: T => V): Unit = {
@@ -67,7 +67,7 @@ class ActionSortedList[T](head: T) {
    * while performing an action against every item that passes by during the sort process.
    *
    * @param item Item to be inserted.
-   * @param getComparableItem Method that receive an item, and returns a matching comparable value.
+   * @param getComparableItem Method that receive an item, and returns a matching comparable value to sort by.
    * @param sortAction Action to apply against every item that passes by during the sort process.
    * @tparam V The type of the comparable value matching the list's items.
    */
@@ -106,7 +106,7 @@ class ActionSortedList[T](head: T) {
    *
    * @param item Item to be inserted on the `addLesser` method.
    * @param currentIndexItem Current index's item.
-   * @param getComparableItem Method that receive an item, and returns a matching comparable value.
+   * @param getComparableItem Method that receive an item, and returns a matching comparable value to sort by.
    * @tparam V The type of the comparable value matching the list's items.
    */
   private def handleLesserPendingItems[V : Ordering](item: T, currentIndexItem: T, getComparableItem: T => V): Unit = {
@@ -127,7 +127,7 @@ class ActionSortedList[T](head: T) {
    * while performing an action against every item that passes by during the sort process
    *
    * @param item Item to be inserted.
-   * @param getComparableItem Method that receive an item, and returns a matching comparable value.
+   * @param getComparableItem Method that receive an item, and returns a matching comparable value to sort by.
    * @param sortAction Action to apply against every item passes by during the sort process.
    * @tparam V The type of the comparable value matching the list's items.
    */

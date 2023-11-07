@@ -1,12 +1,13 @@
 package github.avinoamn.geoUtils.algorithm.concaveHull.dataStructures
 
 import github.avinoamn.geoUtils.algorithm.concaveHull.models.{IntersectingLine, Middle, Vertex}
+import github.avinoamn.geoUtils.algorithm.concaveHull.types.IntersectingLineTypes
 import github.avinoamn.geoUtils.algorithm.concaveHull.utils.math.Equations
 import org.locationtech.jts.geom.{Coordinate, GeometryFactory}
 
 /** Manages a map of middle lines.
  * The keys are the middles' ids, and the values are the middles themselves. */
-class MiddlesMap(implicit factory: GeometryFactory, verticesMap: VerticesMap) {
+class MiddlesMap(implicit factory: GeometryFactory) {
 
   /** The map that contains the vertices. */
   var map: Map[String, Middle] = Map()
@@ -37,8 +38,8 @@ class MiddlesMap(implicit factory: GeometryFactory, verticesMap: VerticesMap) {
     var intersectingMiddles: List[IntersectingLine] = List.empty
 
     getAll.foreach(middle => {
-      val middleLeftVertex = verticesMap.get(middle.left)
-      val middleRightVertex = verticesMap.get(middle.right)
+      val middleLeftVertex = middle.left
+      val middleRightVertex = middle.right
       val middleSlope = middle.slope
 
       val leftRangeSlope = Equations.getSlope(leftVertex, middleLeftVertex)
@@ -102,7 +103,8 @@ class MiddlesMap(implicit factory: GeometryFactory, verticesMap: VerticesMap) {
               throw new Exception("Can't handle geometries with intersections at existing vertex.")
             }
 
-            intersectingMiddles = intersectingMiddles :+ IntersectingLine(intersection, middleLeftVertex.id, middleRightVertex.id, middleSlope)
+            val intersectingLine = IntersectingLine(intersection, middleLeftVertex, middleRightVertex, middleSlope, IntersectingLineTypes.Middle)
+            intersectingMiddles = intersectingMiddles :+ intersectingLine
           }
         }
       }
@@ -122,8 +124,8 @@ class MiddlesMap(implicit factory: GeometryFactory, verticesMap: VerticesMap) {
     var intersectingMiddles: List[IntersectingLine] = List.empty
 
     getAll.foreach(middle => {
-      val middleLeftVertex = verticesMap.get(middle.left)
-      val middleRightVertex = verticesMap.get(middle.right)
+      val middleLeftVertex = middle.left
+      val middleRightVertex = middle.right
       val middleSlope = middle.slope
 
       val leftRangeSlope = Equations.getSlope(rightVertex, middleLeftVertex)
@@ -187,7 +189,8 @@ class MiddlesMap(implicit factory: GeometryFactory, verticesMap: VerticesMap) {
               throw new Exception("Can't handle geometries with intersections at existing vertex.")
             }
 
-            intersectingMiddles = intersectingMiddles :+ IntersectingLine(intersection, middleLeftVertex.id, middleRightVertex.id, middleSlope)
+            val intersectingLine = IntersectingLine(intersection, middleLeftVertex, middleRightVertex, middleSlope, IntersectingLineTypes.Middle)
+            intersectingMiddles = intersectingMiddles :+ intersectingLine
           }
         }
       }
