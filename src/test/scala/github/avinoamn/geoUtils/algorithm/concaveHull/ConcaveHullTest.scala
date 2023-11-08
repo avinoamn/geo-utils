@@ -7,26 +7,30 @@ class ConcaveHullTest extends AnyFunSuite {
 
   val factory: GeometryFactory = new GeometryFactory()
 
-  val testLinearRings: Array[LinearRing] = Array(
-    factory.createLinearRing(Array(
+  test("Valid Linear Ring (should stay the same") {
+    val linearRing = factory.createLinearRing(Array(
       new Coordinate(-1, -1),
       new Coordinate(2, -1),
       new Coordinate(2, 2),
       new Coordinate(-1, 2),
       new Coordinate(-1, -1)
-    )),
-    factory.createLinearRing(Array(
+    ))
+
+    val fixedLinearRing = ConcaveHull.concaveHull(linearRing)
+
+    assert(linearRing.equals(fixedLinearRing))
+  }
+
+  test("Classic hourglass Linear Ring") {
+    val linearRing = factory.createLinearRing(Array(
       new Coordinate(0, 0),
       new Coordinate(1, 0),
       new Coordinate(0, 1),
       new Coordinate(1, 1),
       new Coordinate(0, 0)
     ))
-  )
 
-  val resultLinearRings: Array[LinearRing] = Array(
-    testLinearRings(0),
-    factory.createLinearRing(Array(
+    val expectedFixedLinearRing = factory.createLinearRing(Array(
       new Coordinate(0, 0),
       new Coordinate(1, 0),
       new Coordinate(0.5, 0.5),
@@ -35,25 +39,141 @@ class ConcaveHullTest extends AnyFunSuite {
       new Coordinate(0.5, 0.5),
       new Coordinate(0, 0)
     ))
-  )
 
-  val testPolygon: Polygon = factory.createPolygon(testLinearRings.head, testLinearRings.tail)
-  val resultPolygon: Polygon = factory.createPolygon(resultLinearRings.head, resultLinearRings.tail)
+    val fixedLinearRing = ConcaveHull.concaveHull(linearRing)
 
-  val testMultiPolygon: MultiPolygon = factory.createMultiPolygon(Array(testPolygon))
-  val resultMultiPolygon: MultiPolygon = factory.createMultiPolygon(Array(resultPolygon))
-
-  test("Should fix Linear Ring") {
-    val blyaddddd = ConcaveHull.concaveHull(testLinearRings(1))
-    assert(resultLinearRings(1).equals(blyaddddd))
+    assert(expectedFixedLinearRing.equals(fixedLinearRing))
   }
 
-  test("Should fix polygon") {
-    val blyaddddd = ConcaveHull.concaveHull(testPolygon)
-    assert(resultPolygon.equals(blyaddddd))
+  test("4 intersections onat once") {
+    val linearRing = factory.createLinearRing(Array(
+      new Coordinate(14, 4),
+      new Coordinate(0, 4),
+      new Coordinate(0, 10),
+      new Coordinate(12, 10),
+      new Coordinate(12, 8),
+      new Coordinate(2, 8),
+      new Coordinate(2, 6),
+      new Coordinate(14, 6),
+      new Coordinate(14, 14),
+      new Coordinate(0, 0),
+      new Coordinate(14, 0),
+      new Coordinate(14, 4)
+    ))
+
+    val expectedFixedLinearRing = factory.createLinearRing(Array(
+      new Coordinate(14, 4),
+      new Coordinate(4, 4),
+      new Coordinate(6, 6),
+      new Coordinate(2, 6),
+      new Coordinate(2, 8),
+      new Coordinate(8, 8),
+      new Coordinate(10, 10),
+      new Coordinate(12, 10),
+      new Coordinate(12, 8),
+      new Coordinate(8, 8),
+      new Coordinate(6, 6),
+      new Coordinate(14, 6),
+      new Coordinate(14, 14),
+      new Coordinate(10, 10),
+      new Coordinate(0, 10),
+      new Coordinate(0, 4),
+      new Coordinate(4, 4),
+      new Coordinate(0, 0),
+      new Coordinate(14, 0),
+      new Coordinate(14, 4)
+    ))
+
+    val fixedLinearRing = ConcaveHull.concaveHull(linearRing)
+
+    assert(expectedFixedLinearRing.equals(fixedLinearRing))
   }
 
-  test("Should fix multi polygon") {
-    assert(resultMultiPolygon.equals(ConcaveHull.concaveHull(testMultiPolygon)))
+  test("Double hourglass") {
+    val linearRing = factory.createLinearRing(Array(
+      new Coordinate(1, 1),
+      new Coordinate(2, 1),
+      new Coordinate(2, 7),
+      new Coordinate(3, 7),
+      new Coordinate(3, 6),
+      new Coordinate(1, 4),
+      new Coordinate(3, 4),
+      new Coordinate(1, 2),
+      new Coordinate(1, 1)
+    ))
+
+    val expectedFixedLinearRing = factory.createLinearRing(Array(
+      new Coordinate(1, 1),
+      new Coordinate(2, 1),
+      new Coordinate(2, 3),
+      new Coordinate(3, 4),
+      new Coordinate(2, 4),
+      new Coordinate(2, 5),
+      new Coordinate(3, 6),
+      new Coordinate(3, 7),
+      new Coordinate(2, 7),
+      new Coordinate(2, 5),
+      new Coordinate(1, 4),
+      new Coordinate(2, 4),
+      new Coordinate(2, 3),
+      new Coordinate(1, 2),
+      new Coordinate(1, 1)
+    ))
+
+    val fixedLinearRing = ConcaveHull.concaveHull(linearRing)
+
+    assert(expectedFixedLinearRing.equals(fixedLinearRing))
+  }
+
+  test("nahui") {
+    val linearRing = factory.createLinearRing(Array(
+      new Coordinate(0, -1),
+      new Coordinate(6, -1),
+      new Coordinate(6, 3),
+      new Coordinate(4, 3),
+      new Coordinate(4, 1),
+      new Coordinate(1, 1),
+      new Coordinate(1, 3),
+      new Coordinate(3, 3),
+      new Coordinate(3, 0),
+      new Coordinate(2, 0),
+      new Coordinate(2, 2),
+      new Coordinate(5, 2),
+      new Coordinate(5, 4),
+      new Coordinate(0, 4),
+      new Coordinate(0, -1)
+    ))
+
+    val expectedFixedLinearRing = factory.createLinearRing(Array(
+      new Coordinate(0, -1),
+      new Coordinate(6, -1),
+      new Coordinate(6, 3),
+      new Coordinate(5, 3),
+      new Coordinate(5, 2),
+      new Coordinate(4, 2),
+      new Coordinate(4, 1),
+      new Coordinate(3, 1),
+      new Coordinate(3, 2),
+      new Coordinate(2, 2),
+      new Coordinate(2, 1),
+      new Coordinate(3, 1),
+      new Coordinate(3, 0),
+      new Coordinate(2, 0),
+      new Coordinate(2, 1),
+      new Coordinate(1, 1),
+      new Coordinate(1, 3),
+      new Coordinate(3, 3),
+      new Coordinate(3, 2),
+      new Coordinate(4, 2),
+      new Coordinate(4, 3),
+      new Coordinate(5, 3),
+      new Coordinate(5, 4),
+      new Coordinate(0, 4),
+      new Coordinate(0, -1)
+    ))
+
+    val fixedLinearRing = ConcaveHull.concaveHull(linearRing)
+
+    assert(expectedFixedLinearRing.equals(fixedLinearRing))
   }
 }
