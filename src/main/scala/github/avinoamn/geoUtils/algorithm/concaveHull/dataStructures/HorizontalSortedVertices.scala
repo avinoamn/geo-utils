@@ -38,6 +38,29 @@ class HorizontalSortedVertices(private val head: Vertex)(implicit factory: Geome
     actionSortedList.addGreaterPendingItem(vertex)
   }
 
+  /** Get the id of a middle between two vertices. */
+  def getMiddleId(left: Vertex, right: Vertex): String = {
+    s"${left.id}_${right.id}"
+  }
+
+  /** Add a middle to the Middles Map. */
+  def addMiddle(left: Vertex, right: Vertex, slope: Double): Unit = {
+    val middleId = getMiddleId(left, right)
+    middlesMap.add(Middle(middleId, left, right, slope))
+  }
+
+  /** Remove a middle from the Middles Map. */
+  def removeMiddle(left: Vertex, right: Vertex): Unit = {
+    val middleId = getMiddleId(left, right)
+    middlesMap.remove(middleId)
+  }
+
+  /** Checks if a middle exists in the Middle Map. */
+  def isMiddleExist(left: Vertex, right: Vertex): Boolean = {
+    val middleId = getMiddleId(left, right)
+    middlesMap.get(middleId).isDefined
+  }
+
   /** Using the `addGreater` sort with action method, for every vertex that passes by during the sort process,
    * finds it's line's intersection point (if there is) with the line of the vertex that we're sorting in.
    *
@@ -93,8 +116,8 @@ class HorizontalSortedVertices(private val head: Vertex)(implicit factory: Geome
       val testSlope = rightTestNeighbor.slope
 
       if (rightVertex.x > rightTestVertex.x) {
-        val leftRangeSlope = Equations.getSlope(leftVertex, leftTestVertex)
-        val rightRangeSlope = Equations.getSlope(leftVertex, rightTestVertex)
+        val leftRangeSlope = Equations.getSlope(leftTestVertex, leftVertex)
+        val rightRangeSlope = Equations.getSlope(rightTestVertex, leftVertex)
         if ((rightRangeSlope > testSlope && slope >= rightRangeSlope && slope <= leftRangeSlope) ||
             (rightRangeSlope < testSlope && slope <= rightRangeSlope && slope >= leftRangeSlope) ||
             (slope == testSlope)) {
@@ -136,8 +159,8 @@ class HorizontalSortedVertices(private val head: Vertex)(implicit factory: Geome
       val testSlope = leftTestNeighbor.slope
 
       if (leftVertex.x < leftTestVertex.x) {
-        val leftRangeSlope = Equations.getSlope(rightVertex, leftTestVertex)
-        val rightRangeSlope = Equations.getSlope(rightVertex, rightTestVertex)
+        val leftRangeSlope = Equations.getSlope(leftTestVertex, rightVertex)
+        val rightRangeSlope = Equations.getSlope(rightTestVertex, rightVertex)
         if ((leftRangeSlope > testSlope && slope >= leftRangeSlope && slope <= rightRangeSlope) ||
             (leftRangeSlope < testSlope && slope <= leftRangeSlope && slope >= rightRangeSlope) ||
             (slope == testSlope)) {
@@ -159,8 +182,7 @@ class HorizontalSortedVertices(private val head: Vertex)(implicit factory: Geome
           }
         }
       } else {
-        val middleId = s"${leftTestVertex.id}_${rightTestVertex.id}"
-        middlesMap.add(Middle(middleId, leftTestVertex, rightTestVertex, testSlope))
+        addMiddle(leftTestVertex, rightTestVertex ,testSlope)
       }
     })
   }

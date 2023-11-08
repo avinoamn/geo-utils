@@ -4,7 +4,9 @@ import github.avinoamn.geoUtils.algorithm.concaveHull.models.Vertex
 
 import scala.annotation.tailrec
 
-
+/** Vertices in a geometry act like elements of a linked list.
+ * This object contains linked list like methods for vertices use.
+ **/
 object LinkedVertices {
   /** Reverse the vertices' order in the geometry.
    *

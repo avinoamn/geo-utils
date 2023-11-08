@@ -17,6 +17,11 @@ class MiddlesMap(implicit factory: GeometryFactory) {
     map = map + (middle.id -> middle)
   }
 
+  /** Get middle from the map. */
+  def get(id: String): Option[Middle] = {
+    map.get(id)
+  }
+
   /** Removes a middle from the map by it's id. */
   def remove(id: String): Unit = {
     map = map - id
@@ -42,8 +47,8 @@ class MiddlesMap(implicit factory: GeometryFactory) {
       val middleRightVertex = middle.right
       val middleSlope = middle.slope
 
-      val leftRangeSlope = Equations.getSlope(leftVertex, middleLeftVertex)
-      val rightRangeSlope = Equations.getSlope(leftVertex, middleRightVertex)
+      val leftRangeSlope = Equations.getSlope(middleLeftVertex, leftVertex)
+      val rightRangeSlope = Equations.getSlope(middleRightVertex, leftVertex)
 
       /** Using slopes, checks if the line of the vertex that we want to sort in
        * might intersect with the current iteration middle. */
@@ -128,8 +133,8 @@ class MiddlesMap(implicit factory: GeometryFactory) {
       val middleRightVertex = middle.right
       val middleSlope = middle.slope
 
-      val leftRangeSlope = Equations.getSlope(rightVertex, middleLeftVertex)
-      val rightRangeSlope = Equations.getSlope(rightVertex, middleRightVertex)
+      val leftRangeSlope = Equations.getSlope(middleLeftVertex, rightVertex)
+      val rightRangeSlope = Equations.getSlope(middleRightVertex, rightVertex)
 
       /** Using slopes, checks if the line of the vertex that we want to sort in
        * might intersect with the current iteration middle. */

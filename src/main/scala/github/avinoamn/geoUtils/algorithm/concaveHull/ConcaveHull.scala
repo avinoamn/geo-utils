@@ -2,6 +2,7 @@ package github.avinoamn.geoUtils.algorithm.concaveHull
 
 import github.avinoamn.geoUtils.algorithm.concaveHull.dataStructures._
 import github.avinoamn.geoUtils.algorithm.concaveHull.models.{IntersectingLine, Vertex}
+import github.avinoamn.geoUtils.algorithm.concaveHull.types.IntersectingLineTypes
 import github.avinoamn.geoUtils.algorithm.concaveHull.utils.math.Equations
 import github.avinoamn.geoUtils.algorithm.concaveHull.utils.models.LinkedVertices
 import org.locationtech.jts.geom._
@@ -86,9 +87,10 @@ object ConcaveHull {
                                  (implicit horizontalSortedVertices: HorizontalSortedVertices): Unit = {
     /** Sort the intersections from left to right. */
     val sortedIntersectionLines = intersectingLines.sortBy(line => {
-      slope > 0 match {
-        case true => (line.intersection.x, line.intersection.y)
-        case false => (line.intersection.x, -1 * line.intersection.y)
+      if (slope > 0) {
+        (line.intersection.x, line.intersection.y)
+      } else {
+        (line.intersection.x, -1 * line.intersection.y)
       }
     })
 
@@ -104,14 +106,31 @@ object ConcaveHull {
 
       val headFixVertex = new Vertex(line.intersection.x, line.intersection.y)
       horizontalSortedVertices.addLTRIntersectionVertex(headFixVertex)
-      headVertex.replaceNext(tailVertex, headFixVertex, tailVertex.id == line.left.id)
+      headVertex.replaceNext(tailVertex, headFixVertex, tailVertex == line.left)
       headFixVertex.setLeftNext(leftVertex, slope)
 
       val tailFixVertex = new Vertex(line.intersection.x, line.intersection.y)
       horizontalSortedVertices.addLTRIntersectionVertex(tailFixVertex)
-      tailVertex.setNext(tailFixVertex, line.slope, tailVertex.id == line.left.id)
+      tailVertex.setNext(tailFixVertex, line.slope, tailVertex == line.left)
 
       leftVertex = tailFixVertex
+
+      line.`type` match {
+        case IntersectingLineTypes.Middle => {
+          /** If exist, removes old middle, and insert a new and shorted one from the intersection vertex. */
+          if (horizontalSortedVertices.isMiddleExist(line.left, line.right)) {
+            horizontalSortedVertices.removeMiddle(line.left, line.right)
+
+            if (headVertex == line.right) {
+              horizontalSortedVertices.addMiddle(headFixVertex, headVertex, line.slope)
+            } else {
+              horizontalSortedVertices.addMiddle(tailFixVertex, tailVertex, line.slope)
+            }
+          }
+        }
+
+        case _ =>
+      }
     })
     leftVertex.setRightNext(rightVertex, slope)
   }
@@ -127,9 +146,10 @@ object ConcaveHull {
                                  (implicit horizontalSortedVertices: HorizontalSortedVertices): Unit = {
     /** Sort the intersections from right to left. */
     val sortedIntersectionLines = intersectingLines.sortBy(line => {
-      slope > 0 match {
-        case true => (-1 * line.intersection.x, -1 * line.intersection.y)
-        case false => (-1 * line.intersection.x, line.intersection.y)
+      if (slope > 0) {
+        (-1 * line.intersection.x, -1 * line.intersection.y)
+      } else {
+        (-1 * line.intersection.x, line.intersection.y)
       }
     })
 
@@ -153,6 +173,23 @@ object ConcaveHull {
       tailVertex.setNext(tailFixVertex, line.slope, tailVertex.id == line.left.id)
 
       rightVertex = tailFixVertex
+
+      line.`type` match {
+        /** If exist, removes old middle, and insert a new and shorted one from the intersection vertex. */
+        case IntersectingLineTypes.Middle => {
+          if (horizontalSortedVertices.isMiddleExist(line.left, line.right)) {
+            horizontalSortedVertices.removeMiddle(line.left, line.right)
+
+            if (headVertex == line.left) {
+              horizontalSortedVertices.addMiddle(headVertex, headFixVertex, line.slope)
+            } else {
+              horizontalSortedVertices.addMiddle(tailVertex, tailFixVertex, line.slope)
+            }
+          }
+        }
+
+        case _ =>
+      }
     })
     rightVertex.setLeftNext(leftVertex, slope)
   }
