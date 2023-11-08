@@ -125,7 +125,7 @@ class ConcaveHullTest extends AnyFunSuite {
     assert(expectedFixedLinearRing.equals(fixedLinearRing))
   }
 
-  test("nahui") {
+  test("Complex 4 intersection squares") {
     val linearRing = factory.createLinearRing(Array(
       new Coordinate(0, -1),
       new Coordinate(6, -1),
