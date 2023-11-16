@@ -1,10 +1,9 @@
 package github.avinoamn.geoUtils.algorithm.concaveHull
 
 import github.avinoamn.geoUtils.algorithm.concaveHull.dataStructures._
-import github.avinoamn.geoUtils.algorithm.concaveHull.models.{IntersectingLine, Vertex}
+import github.avinoamn.geoUtils.algorithm.concaveHull.models.{IntersectingLine, Line, Vertex}
 import github.avinoamn.geoUtils.algorithm.concaveHull.types.IntersectingLineTypes
 import github.avinoamn.geoUtils.algorithm.concaveHull.utils.math.Equations
-import github.avinoamn.geoUtils.algorithm.concaveHull.utils.models.LinkedVertices
 import org.locationtech.jts.geom._
 
 object ConcaveHull {
@@ -49,148 +48,130 @@ object ConcaveHull {
 
   def concaveHull(lineString: LineString): LineString = {
     val coords = lineString.getCoordinates
-    val fixedCoords = computeHull(coords)
+    val fixedCoords = concaveHull(coords)
 
     factory.createLineString(fixedCoords)
   }
 
-  def computeHull(coords: Array[Coordinate]): Array[Coordinate] = {
-    val headVertex = new Vertex(coords.head.x, coords.head.y, isHead = true)
-    implicit val horizontalSortedVertices: HorizontalSortedVertices = new HorizontalSortedVertices(headVertex)
+  def concaveHull(coordinates: Array[Coordinate]): Array[Coordinate] = {
+    implicit val linkedVertices: LinkedVertices = new LinkedVertices(coordinates)
+    implicit val horizontalSortedVertices: HorizontalSortedVertices = new HorizontalSortedVertices(linkedVertices.head)
 
-    coords.slice(1, coords.length).zipWithIndex.foreach{ case (coord, index) =>
-      val vertex = new Vertex(coord.x, coord.y, isTail = (index == coords.length - 2))
-      val prevVertex = horizontalSortedVertices.getCurrentIndexVertex
-      val slope = Equations.getSlope(prevVertex, vertex)
-
-      if (vertex.x >= prevVertex.x) {
-        val intersectingLines = horizontalSortedVertices.getLTRIntersectingLines(prevVertex, vertex, slope)
-        fixLTRIntersections(intersectingLines, prevVertex, vertex, slope)
-      } else if (vertex.x < prevVertex.x) {
-        val intersectingLines = horizontalSortedVertices.getRTLIntersectingLines(vertex, prevVertex, slope)
-        fixRTLIntersections(intersectingLines, vertex, prevVertex, slope)
-      }
-    }
+    computeHull
 
     /** Return the fixed geometry's coordinates. */
-    LinkedVertices.getOrdered(headVertex).map(vertex => new Coordinate(vertex.x, vertex.y)).toArray
+    linkedVertices.getOrdered.map(vertex => new Coordinate(vertex.x, vertex.y)).toArray
   }
 
-  /** Fix Intersection points in the geometry by going around them.
-   *
-   * @param intersectingLines List of lines that are intersecting with the line of the vertex that was just sorted in.
-   * @param firstLeftVertex Previous sorted vertex.
-   * @param rightVertex Latest sorted vertex.
-   * @param slope Slope of the line of the vertex that was just sorted in.
-   */
-  private def fixLTRIntersections(intersectingLines: List[IntersectingLine], firstLeftVertex: Vertex, rightVertex: Vertex, slope: Double)
-                                 (implicit horizontalSortedVertices: HorizontalSortedVertices): Unit = {
-    /** Sort the intersections from left to right. */
-    val sortedIntersectionLines = intersectingLines.sortBy(line => {
-      if (slope > 0) {
-        (line.intersection.x, line.intersection.y)
-      } else {
-        (line.intersection.x, -1 * line.intersection.y)
-      }
+  /** Loops over the geometry's vertices, while finding and fixing it's self intersections. */
+  private def computeHull(implicit linkedVertices: LinkedVertices, horizontalSortedVertices: HorizontalSortedVertices): Unit = {
+    linkedVertices.fold((prevVertex, vertex) => {
+      val iterationLine = Line(prevVertex, vertex, Equations.getSlope(prevVertex, vertex))
+
+      val intersectingLines = horizontalSortedVertices.getIntersectingLines(iterationLine)
+
+      fixIntersections(iterationLine, intersectingLines)
     })
-
-    var leftVertex = firstLeftVertex
-    sortedIntersectionLines.foreach(line => {
-      val headAndTail = line.getHeadAndTail
-      val headVertex = headAndTail.head
-      val tailVertex = headAndTail.tail
-
-      val reverseFrom = tailVertex
-      val reverseTo = leftVertex
-      LinkedVertices.reverse(reverseFrom, reverseTo)
-
-      val headFixVertex = new Vertex(line.intersection.x, line.intersection.y)
-      horizontalSortedVertices.addLTRIntersectionVertex(headFixVertex)
-      headVertex.replaceNext(tailVertex, headFixVertex, tailVertex == line.left)
-      headFixVertex.setLeftNext(leftVertex, slope)
-
-      val tailFixVertex = new Vertex(line.intersection.x, line.intersection.y)
-      horizontalSortedVertices.addLTRIntersectionVertex(tailFixVertex)
-      tailVertex.setNext(tailFixVertex, line.slope, tailVertex == line.left)
-
-      leftVertex = tailFixVertex
-
-      line.`type` match {
-        case IntersectingLineTypes.Middle => {
-          /** If exist, removes old middle, and insert a new and shorted one from the intersection vertex. */
-          if (horizontalSortedVertices.isMiddleExist(line.left, line.right)) {
-            horizontalSortedVertices.removeMiddle(line.left, line.right)
-
-            if (headVertex == line.right) {
-              horizontalSortedVertices.addMiddle(headFixVertex, headVertex, line.slope)
-            } else {
-              horizontalSortedVertices.addMiddle(tailFixVertex, tailVertex, line.slope)
-            }
-          }
-        }
-
-        case _ =>
-      }
-    })
-    leftVertex.setRightNext(rightVertex, slope)
   }
 
-  /** Fix Intersection points in the geometry by going around them.
-   *
-   * @param intersectingLines List of lines that are intersecting with the line of the vertex that was just sorted in.
-   * @param leftVertex Latest sorted vertex.
-   * @param firstRightVertex Previous sorted vertex.
-   * @param slope Slope of the line of the vertex that was just sorted in.
-   */
-  private def fixRTLIntersections(intersectingLines: List[IntersectingLine], leftVertex: Vertex, firstRightVertex: Vertex, slope: Double)
-                                 (implicit horizontalSortedVertices: HorizontalSortedVertices): Unit = {
-    /** Sort the intersections from right to left. */
-    val sortedIntersectionLines = intersectingLines.sortBy(line => {
-      if (slope > 0) {
-        (-1 * line.intersection.x, -1 * line.intersection.y)
+  /** Fix all intersections for the current iteration line. */
+  private def fixIntersections(iterationLine: Line, intersectingLines: List[IntersectingLine])
+                              (implicit horizontalSortedVertices: HorizontalSortedVertices, linkedVertices: LinkedVertices): Unit = {
+    val sortedIntersectingLines = sortIntersectingLines(intersectingLines, iterationLine.slope, iterationLine.isLTR)
+
+    val updatedIterationLine = sortedIntersectingLines.foldLeft(iterationLine)((iterationLine, intersectingLine) => {
+      val (intersectionFixHead, intersectionFixTail) = fixIntersection(iterationLine, intersectingLine)
+
+      horizontalSortedVertices.addIntersectionVertices(intersectionFixHead, intersectionFixTail)
+
+      if (iterationLine.isLTR) {
+        handleLTRIntersections(intersectingLine, intersectionFixHead, intersectionFixTail)
       } else {
-        (-1 * line.intersection.x, line.intersection.y)
+        handleRTLIntersections(intersectingLine, intersectionFixHead, intersectionFixTail)
       }
+
+      iterationLine.copy(head = intersectionFixTail)
     })
 
-    var rightVertex = firstRightVertex
-    sortedIntersectionLines.foreach(line => {
-      val headAndTail = line.getHeadAndTail
-      val headVertex = headAndTail.head
-      val tailVertex = headAndTail.tail
+    linkedVertices.setNeighbors(updatedIterationLine.head, updatedIterationLine.tail, updatedIterationLine.slope)
+  }
 
-      val reverseFrom = tailVertex
-      val reverseTo = rightVertex
-      LinkedVertices.reverse(reverseFrom, reverseTo)
+  /** Sort the intersecting lines by their intersection coordinate's `x` value. */
+  private def sortIntersectingLines(intersectingLines: List[IntersectingLine], slope: Double, isLTR: Boolean): List[IntersectingLine] = {
+    val mult = if (isLTR) 1 else -1
 
-      val headFixVertex = new Vertex(line.intersection.x, line.intersection.y)
-      horizontalSortedVertices.addRTLIntersectionVertex(headFixVertex)
-      headVertex.replaceNext(tailVertex, headFixVertex, tailVertex.id == line.left.id)
-      headFixVertex.setRightNext(rightVertex, slope)
+    intersectingLines.sortBy(line => {
+      if (slope > 0) {
+        (mult * line.intersection.x, mult * line.intersection.y)
+      } else {
+        (mult * line.intersection.x, mult * line.intersection.y * -1)
+      }
+    })
+  }
 
-      val tailFixVertex = new Vertex(line.intersection.x, line.intersection.y)
-      horizontalSortedVertices.addRTLIntersectionVertex(tailFixVertex)
-      tailVertex.setNext(tailFixVertex, line.slope, tailVertex.id == line.left.id)
+  /** Gets the intersection vertex. */
+  private def getIntersectionVertex(coordinate: Coordinate): Vertex = {
+    // TODO: Add buffer
 
-      rightVertex = tailFixVertex
+    new Vertex(coordinate.x, coordinate.y)
+  }
 
-      line.`type` match {
+  /** Fix intersection between two lines. */
+  private def fixIntersection(iterationLine: Line, intersectingLine: IntersectingLine)
+                             (implicit linkedVertices: LinkedVertices): (Vertex, Vertex) = {
+    val intersectionFixTail = getIntersectionVertex(intersectingLine.intersection)
+    linkedVertices.replace(intersectingLine.head, intersectionFixTail, intersectingLine.slope)
+
+    val intersectionFixHead = getIntersectionVertex(intersectingLine.intersection)
+    linkedVertices.replaceNext(iterationLine.head, intersectionFixHead, iterationLine.slope)
+
+    linkedVertices.reverse(intersectionFixTail, intersectionFixHead)
+
+    linkedVertices.setNext(intersectingLine.head, intersectionFixHead, intersectingLine.slope)
+    intersectionFixTail.setNext(iterationLine.tail)
+
+    (intersectionFixHead, intersectionFixTail)
+  }
+
+  /** Handle intersection lines by their specific type and direction (LTR). */
+  private def handleLTRIntersections(intersectingLine: IntersectingLine, intersectionFixHead: Vertex, intersectionFixTail: Vertex)
+                                    (implicit horizontalSortedVertices: HorizontalSortedVertices): Unit = {
+    intersectingLine.`type` match {
+      case IntersectingLineTypes.Middle => {
         /** If exist, removes old middle, and insert a new and shorted one from the intersection vertex. */
-        case IntersectingLineTypes.Middle => {
-          if (horizontalSortedVertices.isMiddleExist(line.left, line.right)) {
-            horizontalSortedVertices.removeMiddle(line.left, line.right)
+        if (horizontalSortedVertices.isMiddleExist(intersectingLine.left, intersectingLine.right)) {
+          horizontalSortedVertices.removeMiddle(intersectingLine.left, intersectingLine.right)
 
-            if (headVertex == line.left) {
-              horizontalSortedVertices.addMiddle(headVertex, headFixVertex, line.slope)
-            } else {
-              horizontalSortedVertices.addMiddle(tailVertex, tailFixVertex, line.slope)
-            }
+          if (intersectingLine.head == intersectingLine.right) {
+            horizontalSortedVertices.addMiddle(intersectionFixHead, intersectingLine.right, intersectingLine.slope)
+          } else {
+            horizontalSortedVertices.addMiddle(intersectionFixTail, intersectingLine.right, intersectingLine.slope)
           }
         }
-
-        case _ =>
       }
-    })
-    rightVertex.setLeftNext(leftVertex, slope)
+
+      case _ =>
+    }
+  }
+
+  /** Handle intersection lines by their specific type and direction (RTL). */
+  private def handleRTLIntersections(intersectingLine: IntersectingLine, intersectionFixHead: Vertex, intersectionFixTail: Vertex)
+                                    (implicit horizontalSortedVertices: HorizontalSortedVertices): Unit = {
+    intersectingLine.`type` match {
+      /** If exist, removes old middle, and insert a new and shorted one from the intersection vertex. */
+      case IntersectingLineTypes.Middle => {
+        if (horizontalSortedVertices.isMiddleExist(intersectingLine.left, intersectingLine.right)) {
+          horizontalSortedVertices.removeMiddle(intersectingLine.left, intersectingLine.right)
+
+          if (intersectingLine.head == intersectingLine.left) {
+            horizontalSortedVertices.addMiddle(intersectingLine.left, intersectionFixHead, intersectingLine.slope)
+          } else {
+            horizontalSortedVertices.addMiddle(intersectingLine.left, intersectionFixTail, intersectingLine.slope)
+          }
+        }
+      }
+
+      case _ =>
+    }
   }
 }

@@ -108,7 +108,7 @@ class MiddlesMap(implicit factory: GeometryFactory) {
               throw new Exception("Can't handle geometries with intersections at existing vertex.")
             }
 
-            val intersectingLine = IntersectingLine(intersection, middleLeftVertex, middleRightVertex, middleSlope, IntersectingLineTypes.Middle)
+            val intersectingLine = IntersectingLine(middleLeftVertex, middleRightVertex, middleSlope, intersection, IntersectingLineTypes.Middle)
             intersectingMiddles = intersectingMiddles :+ intersectingLine
           }
         }
@@ -194,7 +194,7 @@ class MiddlesMap(implicit factory: GeometryFactory) {
               throw new Exception("Can't handle geometries with intersections at existing vertex.")
             }
 
-            val intersectingLine = IntersectingLine(intersection, middleLeftVertex, middleRightVertex, middleSlope, IntersectingLineTypes.Middle)
+            val intersectingLine = IntersectingLine(middleLeftVertex, middleRightVertex, middleSlope, intersection, IntersectingLineTypes.Middle)
             intersectingMiddles = intersectingMiddles :+ intersectingLine
           }
         }

@@ -1,13 +1,13 @@
 package github.avinoamn.geoUtils.algorithm.concaveHull
 
-import org.locationtech.jts.geom.{Coordinate, GeometryFactory, LinearRing, MultiPolygon, Polygon}
+import org.locationtech.jts.geom.{Coordinate, GeometryFactory}
 import org.scalatest.funsuite.AnyFunSuite
 
 class ConcaveHullTest extends AnyFunSuite {
 
   val factory: GeometryFactory = new GeometryFactory()
 
-  test("Valid Linear Ring (should stay the same") {
+  test("Valid Linear Ring (should stay the same)") {
     val linearRing = factory.createLinearRing(Array(
       new Coordinate(-1, -1),
       new Coordinate(2, -1),

@@ -16,7 +16,7 @@ class Vertex(val x: Double, val y: Double, val isHead: Boolean = false, val isTa
   /** Id of the following coordinate in the geometry. */
   var next: Vertex = _
 
-  /** Lists of the left/right neighbors of the coordinate (2 max total). */
+  /** Lists of the left/right neighbors of the coordinate (2 neighbors max total). */
   var left: List[Neighbor] = List.empty
   var right: List[Neighbor] = List.empty
 
@@ -41,10 +41,8 @@ class Vertex(val x: Double, val y: Double, val isHead: Boolean = false, val isTa
    * @param newVertex New neighbor vertex.
    */
   def replaceLeft(oldVertex: Vertex, newVertex: Vertex): Unit = {
-    this.left = this.left.map(neighbor => {
+    left = left.map(neighbor => {
       if (neighbor.vertex.id == oldVertex.id) {
-        oldVertex.removeRight(this.id)
-        newVertex.addRight(this, neighbor.slope)
         neighbor.copy(vertex = newVertex)
       } else {
         neighbor
@@ -58,10 +56,8 @@ class Vertex(val x: Double, val y: Double, val isHead: Boolean = false, val isTa
    * @param newVertex New neighbor vertex.
    */
   def replaceRight(oldVertex: Vertex, newVertex: Vertex): Unit = {
-    this.right = this.right.map(neighbor => {
+    right = right.map(neighbor => {
       if (neighbor.vertex.id == oldVertex.id) {
-        oldVertex.removeLeft(this.id)
-        newVertex.addLeft(this, neighbor.slope)
         neighbor.copy(vertex = newVertex)
       } else {
         neighbor
@@ -71,73 +67,17 @@ class Vertex(val x: Double, val y: Double, val isHead: Boolean = false, val isTa
 
   /** Remove a neighbor to the left of `this` vertex.
    *
-   * @param id Id of the neighbor to remove.
+   * @param vertex Neighboring vertex to remove.
    */
-  def removeLeft(id: String): Unit = {
-    left = left.filter(neighbor => neighbor.vertex.id != id)
+  def removeLeft(vertex: Vertex): Unit = {
+    left = left.filter(neighbor => neighbor.vertex == vertex)
   }
 
   /** Remove a neighbor to the right of `this` vertex.
    *
-   * @param id Id of the neighbor to remove.
+   * @param vertex Neighboring vertex to remove.
    */
-  def removeRight(id: String): Unit = {
-    right = right.filter(neighbor => neighbor.vertex.id != id)
-  }
-
-  /** Set vertex as `this` vertex's `next`, and as it's left neighbor.
-   *
-   * @param next Vertex to set as `this` vertex's `next`.
-   * @param slope The slope between `this` vertex and it's `next` vertex.
-   */
-  def setLeftNext(next: Vertex, slope: Double): Unit = {
-    this.addLeft(next, slope)
-    next.addRight(this, slope)
-
-    this.setNext(next)
-  }
-
-  /** Set vertex as `this` vertex's `next`, and as it's right neighbor.
-   *
-   * @param next Vertex to set as `this` vertex's `next`.
-   * @param slope The slope between `this` vertex and it's `next` vertex.
-   */
-  def setRightNext(next: Vertex, slope: Double): Unit = {
-    this.addRight(next, slope)
-    next.addLeft(this, slope)
-
-    this.setNext(next)
-  }
-
-  /** Set vertex as `this` vertex's `next`, and as one of its neighbors.
-   *
-   * @param next Vertex to set as `this` vertex's `next`.
-   * @param slope The slope between `this` vertex and it's next vertex.
-   * @param isNextRight Is the new next vertex to the right of `this` vertex.
-   */
-  def setNext(next: Vertex, slope: Double, isNextRight: Boolean): Unit = {
-    if (isNextRight) {
-      setRightNext(next, slope)
-    } else {
-      setLeftNext(next, slope)
-    }
-  }
-
-  /** Replace the current `next` vertex of `this` vertex with a new one.
-   *
-   * @param currNext Current `next` of `this` vertex.
-   * @param newNext New vertex to set as `this` vertex's `next`.
-   * @param isCurrentNextLeft Is the current next vertex to the right of `this` vertex.
-   */
-  def replaceNext(currNext: Vertex, newNext: Vertex, isCurrentNextLeft: Boolean): Unit = {
-    if (isCurrentNextLeft) {
-      this.replaceLeft(currNext, newNext)
-
-      this.setNext(newNext)
-    } else {
-      this.replaceRight(currNext, newNext)
-
-      this.setNext(newNext)
-    }
+  def removeRight(vertex: Vertex): Unit = {
+    right = right.filter(neighbor => neighbor.vertex == vertex)
   }
 }

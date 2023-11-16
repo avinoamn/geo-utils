@@ -11,7 +11,7 @@ import Ordering.Implicits._
  * @param head The first item of the sorted list.
  * @tparam T The sorted list's items type.
  */
-class ActionSortedList[T](head: T) {
+class ActionSortedList[T](head: T)(implicit ordering: Ordering[T]) {
 
   /** The list that contains the sorted items. */
   var list: List[T] = List(head)
@@ -29,14 +29,23 @@ class ActionSortedList[T](head: T) {
     list(currentIndex)
   }
 
-  /** Prepend item to `greaterPendingItems`. */
-  def addGreaterPendingItem(item: T): Unit = {
-    greaterPendingItems = item +: greaterPendingItems
+  /** Add a list of sorted items to be pending. */
+  def addPendingItems(items: List[T]): Unit = {
+    if (items.head < getCurrentIndexItem) {
+      addLesserPendingItems(items)
+    } else {
+      addGreaterPendingItems(items)
+    }
   }
 
-  /** Prepend item to `lesserPendingItems`. */
-  def addLesserPendingItem(item: T): Unit = {
-    lesserPendingItems = item +: lesserPendingItems
+  /** Prepend items to `greaterPendingItems`. */
+  private def addGreaterPendingItems(items: List[T]): Unit = {
+    greaterPendingItems = items ++ greaterPendingItems
+  }
+
+  /** Prepend items to `lesserPendingItems`. */
+  private def addLesserPendingItems(items: List[T]): Unit = {
+    lesserPendingItems = items ++ lesserPendingItems
   }
 
   /** Handles the greater pending items list.
@@ -47,15 +56,12 @@ class ActionSortedList[T](head: T) {
    *
    * @param item Item to be inserted on the `addGreater` method.
    * @param currentIndexItem Current index's item.
-   * @param getComparableItem Method that receive an item, and returns a matching comparable value to sort by.
-   * @tparam V The type of the comparable value matching the list's items.
    */
-  private def handleGreaterPendingItems[V : Ordering](item: T, currentIndexItem: T, getComparableItem: T => V): Unit = {
+  private def handleGreaterPendingItems(item: T, currentIndexItem: T): Unit = {
     if (greaterPendingItems.nonEmpty) {
-      val comparablePendingItem = getComparableItem(greaterPendingItems.head)
+      val comparablePendingItem = greaterPendingItems.head
 
-      if (comparablePendingItem <= getComparableItem(item) &&
-          comparablePendingItem <= getComparableItem(currentIndexItem)) {
+      if (comparablePendingItem <= item && comparablePendingItem <= currentIndexItem) {
         list = list.patch(currentIndex, List(greaterPendingItems.head), 0);
 
         greaterPendingItems = greaterPendingItems.tail
@@ -67,20 +73,18 @@ class ActionSortedList[T](head: T) {
    * while performing an action against every item that passes by during the sort process.
    *
    * @param item Item to be inserted.
-   * @param getComparableItem Method that receive an item, and returns a matching comparable value to sort by.
    * @param sortAction Action to apply against every item that passes by during the sort process.
-   * @tparam V The type of the comparable value matching the list's items.
    */
-  def addGreater[V : Ordering](item: T, getComparableItem: T => V, sortAction: T => Unit): Unit = {
+  def addGreater(item: T, sortAction: T => Unit): Unit = {
 
     /** Recursive sort method that keeps looping as long as there are items that are
      * lesser/equal to the item that we are sorting in. */
     @tailrec
     def recursiveSort(): Unit = {
       if (currentIndex < list.length) {
-        handleGreaterPendingItems(item, getCurrentIndexItem, getComparableItem)
+        handleGreaterPendingItems(item, getCurrentIndexItem)
 
-        if (getComparableItem(item) >= getComparableItem(getCurrentIndexItem)) {
+        if (item >= getCurrentIndexItem) {
           sortAction(getCurrentIndexItem)
 
           currentIndex += 1
@@ -106,15 +110,10 @@ class ActionSortedList[T](head: T) {
    *
    * @param item Item to be inserted on the `addLesser` method.
    * @param currentIndexItem Current index's item.
-   * @param getComparableItem Method that receive an item, and returns a matching comparable value to sort by.
-   * @tparam V The type of the comparable value matching the list's items.
    */
-  private def handleLesserPendingItems[V : Ordering](item: T, currentIndexItem: T, getComparableItem: T => V): Unit = {
+  private def handleLesserPendingItems(item: T, currentIndexItem: T): Unit = {
     if (lesserPendingItems.nonEmpty) {
-      val comparablePendingItem = getComparableItem(lesserPendingItems.head)
-
-      if (comparablePendingItem >= getComparableItem(item) &&
-          comparablePendingItem >= getComparableItem(currentIndexItem)) {
+      if (lesserPendingItems.head >= item && lesserPendingItems.head >= currentIndexItem) {
         currentIndex += 1
         list = list.patch(currentIndex, List(lesserPendingItems.head), 0);
 
@@ -127,20 +126,18 @@ class ActionSortedList[T](head: T) {
    * while performing an action against every item that passes by during the sort process
    *
    * @param item Item to be inserted.
-   * @param getComparableItem Method that receive an item, and returns a matching comparable value to sort by.
    * @param sortAction Action to apply against every item passes by during the sort process.
-   * @tparam V The type of the comparable value matching the list's items.
    */
-  def addLesser[V : Ordering](item: T, getComparableItem: T => V, sortAction: T => Unit): Unit = {
+  def addLesser(item: T, sortAction: T => Unit): Unit = {
 
     /** Recursive sort method that keeps looping as long as there are items that are
      * greater/equal to the item that we are sorting in. */
     @tailrec
     def recursiveSort(): Unit = {
       if (currentIndex >= 0) {
-        handleLesserPendingItems(item, getCurrentIndexItem, getComparableItem)
+        handleLesserPendingItems(item, getCurrentIndexItem)
 
-        if (getComparableItem(item) <= getComparableItem(getCurrentIndexItem)) {
+        if (item <= getCurrentIndexItem) {
           sortAction(getCurrentIndexItem)
 
           currentIndex -= 1

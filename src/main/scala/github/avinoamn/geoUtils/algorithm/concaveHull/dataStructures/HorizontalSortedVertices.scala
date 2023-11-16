@@ -1,18 +1,20 @@
 package github.avinoamn.geoUtils.algorithm.concaveHull.dataStructures
 
-import github.avinoamn.geoUtils.algorithm.concaveHull.models.{IntersectingLine, Middle, Vertex}
+import github.avinoamn.geoUtils.algorithm.concaveHull.models.{IntersectingLine, Line, Middle, Vertex}
 import github.avinoamn.geoUtils.algorithm.concaveHull.types.IntersectingLineTypes
 import github.avinoamn.geoUtils.algorithm.concaveHull.utils.math.Equations
 import org.locationtech.jts.geom.{Coordinate, GeometryFactory}
 
 /** Based on the `ActionSortedList` data structure,
- * this class holds an array of vertices ids, sorted by their vertex's `x` value.
+ * this class holds an array of vertices, sorted by their vertex's `x` value.
  * During the sorting process, an action that tries to find intersecting lines
  * is performed against every vertex that passes by.
  *
- * @param head The first vertex id in the sorted array.
+ * @param head The first vertex in the sorted array.
  **/
 class HorizontalSortedVertices(private val head: Vertex)(implicit factory: GeometryFactory) {
+
+  implicit val ordering: Ordering[Vertex] = Ordering.by[Vertex, Double](_.x)
 
   /** The action sorted list that contains the sorted vertices ids. */
   val actionSortedList = new ActionSortedList[Vertex](head)
@@ -23,19 +25,10 @@ class HorizontalSortedVertices(private val head: Vertex)(implicit factory: Geome
   /** A list of intersecting lines that are calculated on the `getLTRIntersectingLines` and `getRTLIntersectingLines` methods. */
   var intersectingLines: List[IntersectingLine] = _
 
-  /** Gets the current index's vertex. */
-  def getCurrentIndexVertex: Vertex = {
-    actionSortedList.getCurrentIndexItem
-  }
-
-  /** Prepend intersection's vertex to `lesserPendingItems`. */
-  def addLTRIntersectionVertex(vertex: Vertex): Unit = {
-    actionSortedList.addLesserPendingItem(vertex)
-  }
-
-  /** Prepend intersection's vertex to `greaterPendingItems`. */
-  def addRTLIntersectionVertex(vertex: Vertex): Unit = {
-    actionSortedList.addGreaterPendingItem(vertex)
+  /** Add intersection vertices to the sorted list.
+   * The insertion is lazy and happens when we reach the `x` value of the intersection during a future sort action. */
+  def addIntersectionVertices(v1: Vertex, v2: Vertex): Unit = {
+    actionSortedList.addPendingItems(List(v1, v2))
   }
 
   /** Get the id of a middle between two vertices. */
@@ -43,13 +36,13 @@ class HorizontalSortedVertices(private val head: Vertex)(implicit factory: Geome
     s"${left.id}_${right.id}"
   }
 
-  /** Add a middle to the Middles Map. */
+  /** Adds a middle to the Middles Map. */
   def addMiddle(left: Vertex, right: Vertex, slope: Double): Unit = {
     val middleId = getMiddleId(left, right)
     middlesMap.add(Middle(middleId, left, right, slope))
   }
 
-  /** Remove a middle from the Middles Map. */
+  /** Removes a middle from the Middles Map. */
   def removeMiddle(left: Vertex, right: Vertex): Unit = {
     val middleId = getMiddleId(left, right)
     middlesMap.remove(middleId)
@@ -61,6 +54,20 @@ class HorizontalSortedVertices(private val head: Vertex)(implicit factory: Geome
     middlesMap.get(middleId).isDefined
   }
 
+  /** Using the sort with action methods, for every vertex that passes by during the sort process,
+   * finds it's line's intersection point (if there is) with current iteration line.
+   *
+   * @param iterationLine the line of the vertex that we're sorting in.
+   * @return List of lines that intersects with the current iteration line.
+   */
+  def getIntersectingLines(iterationLine: Line): List[IntersectingLine] = {
+    if (iterationLine.isLTR) {
+      getLTRIntersectingLines(iterationLine.head, iterationLine.tail, iterationLine.slope)
+    } else {
+      getRTLIntersectingLines(iterationLine.tail, iterationLine.head, iterationLine.slope)
+    }
+  }
+
   /** Using the `addGreater` sort with action method, for every vertex that passes by during the sort process,
    * finds it's line's intersection point (if there is) with the line of the vertex that we're sorting in.
    *
@@ -70,9 +77,9 @@ class HorizontalSortedVertices(private val head: Vertex)(implicit factory: Geome
    * @return List lines of all the vertices that passes by during the sort process,
    * that intersects with the line of the vertex that we're sorting in.
    */
-  def getLTRIntersectingLines(leftVertex: Vertex, rightVertex: Vertex, slope: Double): List[IntersectingLine] = {
+  private def getLTRIntersectingLines(leftVertex: Vertex, rightVertex: Vertex, slope: Double): List[IntersectingLine] = {
     intersectingLines = List.empty
-    actionSortedList.addGreater(rightVertex, getVertexX, getLTRIntersectingLineAction(leftVertex, rightVertex, slope))
+    actionSortedList.addGreater(rightVertex, getLTRIntersectingLineAction(leftVertex, rightVertex, slope))
 
     val intersectingMiddles = middlesMap.getLTRIntersections(leftVertex, rightVertex, slope)
 
@@ -88,18 +95,13 @@ class HorizontalSortedVertices(private val head: Vertex)(implicit factory: Geome
    * @return List lines of all the vertices that passes by during the sort process,
    * that intersects with the line of the vertex that we're sorting in.
    */
-  def getRTLIntersectingLines(leftVertex: Vertex, rightVertex: Vertex, slope: Double): List[IntersectingLine] = {
+  private def getRTLIntersectingLines(leftVertex: Vertex, rightVertex: Vertex, slope: Double): List[IntersectingLine] = {
     intersectingLines = List.empty
-    actionSortedList.addLesser(leftVertex, getVertexX, getRTLIntersectingLineAction(leftVertex, rightVertex, slope))
+    actionSortedList.addLesser(leftVertex, getRTLIntersectingLineAction(leftVertex, rightVertex, slope))
 
     val intersectingMiddles = middlesMap.getRTLIntersections(leftVertex, rightVertex, slope)
 
     intersectingLines ++ intersectingMiddles
-  }
-
-  /** Get x value of a vertex. */
-  private def getVertexX(vertex: Vertex): Double = {
-    vertex.x
   }
 
   /** Sort action that for every vertex that passes by during the sort process,
@@ -134,7 +136,7 @@ class HorizontalSortedVertices(private val head: Vertex)(implicit factory: Geome
               throw new Exception("Can't handle geometries with intersections at existing vertex.")
             }
 
-            val intersectingLine = IntersectingLine(intersection, leftTestVertex, rightTestVertex, testSlope, IntersectingLineTypes.Crossing)
+            val intersectingLine = IntersectingLine(leftTestVertex, rightTestVertex, testSlope, intersection, IntersectingLineTypes.Crossing)
             intersectingLines = intersectingLines :+ intersectingLine
           }
         }
@@ -177,7 +179,7 @@ class HorizontalSortedVertices(private val head: Vertex)(implicit factory: Geome
               throw new Exception("Can't handle geometries with intersections at existing vertex.")
             }
 
-            val intersectingLine = IntersectingLine(intersection, leftTestVertex, rightTestVertex, testSlope, IntersectingLineTypes.Crossing)
+            val intersectingLine = IntersectingLine(leftTestVertex, rightTestVertex, testSlope, intersection, IntersectingLineTypes.Crossing)
             intersectingLines = intersectingLines :+ intersectingLine
           }
         }
